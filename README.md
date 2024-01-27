@@ -383,8 +383,192 @@ Let's Learn .NET - Blazor (한국어) 세션의 데모 코드를 저장한 곳�
 
 ## 게임 로직 추가하기
 
-TBD
+![커넥트포게임이미지](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Connect_Four.jpg/330px-Connect_Four.jpg) <br/>
+
+우리가 만드는 게임은 사진과 같은 보드게임을 만드는 것입니다.
+이 게임은 번갈아 조각을 떨어뜨리고 4개를 먼저 연결하면 이기는 게임입니다.
+이제 화면에 보드판을 표시하였으니 조각을 떨어뜨리고 승패를 판정하는 로직을 넣어야 합니다.
+
+### 게임 상태 추가하기
+먼저 게임 상태를 관리하는 클래스를 추가하겠습니다. 
+
+1. [GameState.cs 파일](./1-complete/ConnectFour/GameState.cs)을 복사하여 프로젝트에 추가합니다. <br/>
+이 클래스는 게임 상태를 처리하는 로직이 들어있습니다.
+
+1. GameState 클래스를 사용할 수 있도록 Programs.cs 파일에 Singleton으로 추가합니다.
+네임스페이스를 추가하시는 것을 잊지 마세요.
+
+    ```
+    using ConnectFour;
+    ```
+
+    ```
+    builder.Services.AddSingleton<GameState>();
+    ```
+
+### 게임 상태 초기화
+
+1. Board 컴포넌트가 시작할 때 게임 상태도 초기화되는 것이 좋겠습니다.
+Board.razor 파일 최상단에 아래 코드를 추가해주면 GameState 클래스를 State라는 이름으로 사용하겠다는 뜻입니다. Program.cs에서 추가해준 인스턴스를 그대로 사용하는 것입니다.
+
+    ```
+    @inject GameState State
+    ```
+
+1.  Board.razor 파일의 코드 블럭에 OnInitialized 메서드에 GameState를 초기화하는 코드를 추가합니다.
+
+    ```
+    protected override void OnInitialized()
+    {
+        State.ResetBoard();
+    }
+    ```
+
+### 게임 말 추가하기
+이제 게임 말을 하나씩 추가해 보겠습니다. Board.razor 파일을 수정하여 구현합니다.
+
+1. 게임 말 정보를 보관할 배열을 선언합니다.
+    ```
+    private string[] pieces = new string[42];
+    ```
+1. 게임 말의 역할을 맡아줄 42개의 HTML을 추가합니다.
+    ```
+    @for (var i = 0; i < 42; i++)
+    {
+       <span class="@pieces[i]"></span>
+    }
+    ```
+
+### 게임 말 떨어뜨리기
+다음으로는 플레이어가 각 열에 게임말을 떨어뜨렸을 때의 처리를 구현해 보죠.<br/>
+GameState 클래스는 누구 차례인지 게임 보드판이 어떤 상태인지 이미 모두 알고 있습니다.<br/>
+GameState에서 정보를 얻어서 게임말을 떨어뜨리는 메서드를 아래와 같이 구현할 수 있습니다.
+
+1. Board.razor 코드 블럭에 아래 메서드를 추가해 주세요.
+    ```
+    private void PlayPiece(byte col)
+    {
+        var player = State.PlayerTurn;
+        var turn = State.CurrentTurn;
+        var landingRow = State.PlayPiece(col);
+        pieces[turn] = $"player{player} col{col} drop{landingRow}";
+    }
+    ```
+
+### 보드판의 열 선택
+게임 말을 떨어뜨리는 기능이 구현되었으니 보드판에서 열을 선택해서 떨어뜨려 봅시다.
+보드판 각 열 위에 "🔽"을 클릭해서 선택할 수 있게 합니다.
+
+1. 클릭할 수 있게 버튼 위에 추가해 주는 <div> 태그를 추가해 주세요.
+    ```
+    <nav>
+        @for (byte i = 0; i < 7; i++)
+        {
+            var piece = i;
+            <span title="Click to play a piece" @onclick="() => PlayPiece(piece)">🔽</span>
+        }
+    </nav>
+    ```
+    @onclick 속성은 클릭 이벤트에 이벤트 핸들러를 지정합니다. 하지만 UI 이벤트를 처리하기 위해서는 Blazor Component가 interactive render mode여야 합니다. Blazor Component는 기본적으로 Static Render이므로 @rendermode 속성을 변경해줘야 합니다.
+
+1. @rendermode를 변경하기 위해서는 Home.razor 파일의 Board 속성을 아래와 같이 추가합니다.
+    ```
+    <Board @rendermode="InteractiveServer" />
+    ```
+1. 아래 그림처럼 되면 성공입니다.
+    ![열선택 이미지](https://github.com/dotnet/intro-to-dotnet-web-dev/raw/main/5-blazor/img/2-board-drop.gif)
+
+### 승패 판정과 에러 처리
+이제 원하는 곳에 게임말을 번갈아 놓아 떨어뜨릴 수 있게 되었습니다. 하지만 누가 이겼는지는 알 수가 없네요. 그리고 한 줄에 너무 많은 게임말을 떨어뜨리면 오류가 발생합니다. 이래선 안 되겠네요. 수정해 보죠.
+
+1. 열 선택 버튼 밑에 승패에 대한 메시지나 오류에 대한 메시지를 표시할 수 있는 자리를 추가합니다.
+    ```
+    <article>
+      @winnerMessage  <button style="@ResetStyle" @onclick="ResetGame">Reset the game</button>
+      <br />
+      <span class="alert-danger">@errorMessage</span>
+      <span class="alert-info">@CurrentTurn</span>
+    </article>
+    ```
+    자세히 보면 승패 및 오류에 대한 표시 그리고 이번이 누구 차례인가를 표시하게 되어 있네요. 아직은 자리만 잡은 상태이고 에러가 납니다.
+
+1. 이제 에러가 나지 않게 변수를 선언해 주세요.
+    ```
+    private string winnerMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    private string CurrentTurn => (winnerMessage == string.Empty) ? $"Player {State.PlayerTurn}'s Turn" : "";
+    private string ResetStyle => (winnerMessage == string.Empty) ? "display: none;" : "";
+    ```
+
+1. 그럼 이제 게임말을 내려 놓는 메서드에서 GameState에서 발생한 예외와 게임판정에 대한 메시지를 표시하도록 변경해 봅시다.
+
+    ```
+    private void PlayPiece(byte col)
+    {
+      errorMessage = string.Empty;
+      try
+      {
+        var player = State.PlayerTurn;
+        var turn = State.CurrentTurn;
+        var landingRow = State.PlayPiece(col);
+        pieces[turn] = $"player{player} col{col} drop{landingRow}";
+      }
+      catch (ArgumentException ex)
+      {
+        errorMessage = ex.Message;
+      }
+
+      winnerMessage = State.CheckForWin() switch
+      {
+        GameState.WinState.Player1_Wins => "Player 1 Wins!",
+        GameState.WinState.Player2_Wins => "Player 2 Wins!",
+        GameState.WinState.Tie => "It's a tie!",
+        _ => ""
+      };
+    }
+    ```
+
+1. 새로 추가된 내용에 승패가 정해지고 나면 다시 시작하는 버튼이 있습니다. 게임 상태를 초기화 하는 메서드도 추가합니다.
+    ```
+    void ResetGame()
+    {
+        State.ResetBoard();
+        winnerMessage = string.Empty;
+        errorMessage = string.Empty;
+        pieces = new string[42];
+    }
+    ```
+
+이제 게임이 만들어졌네요. 누가 이겼는지도 알 수 있고 다시 시작할 수도 있습니다.<br/>
+다음은 게임 보드의 색을 커스터마이징하는 방법을 알아보겠습니다.
 
 ## 게임 보드 커스터마이징하기
 
-TBD
+우리가 만든 게임은 Board 컴포넌트가 처리합니다. Board 속성으로 게임 보드판의 색상을 지정하도록 변경해 보겠습니다. 
+
+1. Board.razor파일의 코드 블럭에 속성을 지정할 수 있도록 아래 코드를 추가합니다.
+
+    ```
+    [Parameter]
+    public Color BoardColor { get; set; } = ColorTranslator.FromHtml("yellow");
+
+    [Parameter]
+    public Color Player1Color { get; set; } = ColorTranslator.FromHtml("red");
+
+    [Parameter]
+    public Color Player2Color { get; set; } = ColorTranslator.FromHtml("blue");
+    ```
+
+1. 색상과 관련해서 네임스페이스를 추가합니다.
+    ```
+    @using System.Drawing
+    ```
+
+1. Home.razor에서 Board 태그의 속성을 지정하면 색상이 바뀝니다.
+    ```
+    <Board @rendermode="InteractiveServer"
+      BoardColor="System.Drawing.Color.Black"
+      Player1Color="System.Drawing.Color.Green"
+      Player2Color="System.Drawing.Color.Purple" />
+    ```
