@@ -475,7 +475,7 @@ GameState에서 정보를 얻어서 게임말을 떨어뜨리는 메서드를 �
     ```
     <Board @rendermode="InteractiveServer" />
     ```
-1. 아래 그림처럼 되면 성공입니다.
+1. 아래 그림처럼 되면 성공입니다.<br/>
     ![열선택 이미지](https://github.com/dotnet/intro-to-dotnet-web-dev/raw/main/5-blazor/img/2-board-drop.gif)
 
 ### 승패 판정과 에러 처리
@@ -572,3 +572,87 @@ GameState에서 정보를 얻어서 게임말을 떨어뜨리는 메서드를 �
       Player1Color="System.Drawing.Color.Green"
       Player2Color="System.Drawing.Color.Purple" />
     ```
+
+## 테스트 프로젝트 추가하기
+
+### MSTEST 프로젝트 추가
+단위 테스트를 위해서는 별도의 테스트 프로젝트를 추가합니다.
+여기에서는 테스트보다는 커넥트포 프로젝트의 코드 결과를 화면으로 확인하는 용도로 사용합니다.
+
+1. dotnet new 명령어를 통해 새로운 프로젝트를 추가합니다.
+    ```
+    dotnet new mstest --name ConnectFourTest
+    ```
+
+1. 테스트 프로젝트에서 커넥트포 프로젝트의 코드를 사용할 수 있도록 참조를 추가합니다.
+    ```
+    dotnet add .\ConnectFourTest\ reference .\ConnectFour\
+    ```
+
+1. 솔루션에 테스트 프로젝트를 추가해 주세요.
+    ```
+    dotnet sln add .\ConnectFourTest\
+    ```
+
+이제 테스트 코드를 작성하기 위한 준비는 모두 마쳤습니다.
+
+### 테스트 코드 추가
+테스트 프로젝트에는 UnitTest1.cs 파일이 있고 TestMethod1메서드가 실행됩니다.
+GaemState의 처리를 알아보기 위해서 아래 코드로 변경해 주세요.
+
+1. UnitTest1.cs파일의 최상단에 using을 추가합니다. 
+    ```
+    using ConnectFour;
+    ```
+1. UnitTest1.cs파일의 TestMethod1 메서드를 아래와 같이 수정합니다.
+    ```
+      [TestMethod]
+      public void TestMethod1()
+      {
+        GameState State = new();
+        State.ResetBoard();
+
+        {
+          var col = 0;
+          var player = State.PlayerTurn;
+          var turn = State.CurrentTurn;
+          var landingRow = State.PlayPiece(col);
+          var result = $"player{player} col{col} drop{landingRow}";
+          Console.WriteLine(result);
+        }
+
+        {
+          var col = 0;
+          var player = State.PlayerTurn;
+          var turn = State.CurrentTurn;
+          var landingRow = State.PlayPiece(col);
+          var result = $"player{player} col{col} drop{landingRow}";
+          Console.WriteLine(result);
+        }
+
+        {
+          var winner = State.CheckForWin();
+          Console.WriteLine(winner);
+        }
+      }
+    ```
+1. 터미널에서 아래 명령어를 실행시켜 테스트프로젝트를 실행해서 결과를 확인해 보죠.
+    ```
+    dotnet test --logger "console;verbosity=detailed" .\ConnectFourTest\
+    ```
+1. 아래와 같이 결과가 나왔으면 정상입니다.
+    ```
+      통과 TestMethod1 [3 ms]
+      표준 출력 메시지:
+     player1 col0 drop6
+     player2 col0 drop5
+     No_Winner
+
+
+
+    테스트를 실행했습니다.
+    총 테스트 수: 1
+         통과: 1
+     총 시간: 0.4941 초
+    ```
+    Board에서 게임말을 놓으면 처리하는 내용을 확인해 보았습니다.
