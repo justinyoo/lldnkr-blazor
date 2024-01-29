@@ -565,6 +565,19 @@ GameState에서 정보를 얻어서 게임말을 떨어뜨리는 메서드를 �
     @using System.Drawing
     ```
 
+1. Board.razor에서 색상 지정하는 HTML을 수정합니다.
+    ```
+    <HeadContent>
+      <style>
+        :root {
+          --board-bg: @ColorTranslator.ToHtml(BoardColor);
+          --player1: @ColorTranslator.ToHtml(Player1Color);
+          --player2: @ColorTranslator.ToHtml(Player2Color);
+        }
+      </style>
+    </HeadContent>
+    ```
+    
 1. Home.razor에서 Board 태그의 속성을 지정하면 색상이 바뀝니다.
     ```
     <Board @rendermode="InteractiveServer"
